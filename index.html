@@ -2245,9 +2245,16 @@
         return rows
       }
 
-      function inventoryServices() {
-        for (let r=0; r<AWS_REGIONS.length; r++) {
-          let region = AWS_REGIONS[r];
+      window.REGION = {}
+      window.inventoryServices = function inventoryServices(region) {
+          console.debug(region)
+          // prevent running multiple time for the same region
+          if (window.REGION[region]) {
+            return
+          } else {
+            window.REGION[region] = true
+          }
+          let delay = 0
           for (let q=0; q<awsQueries.length; q++) {
             const query = awsQueries[q]
             // if (query.service !== 'WAF') { // DEBUG
@@ -2319,17 +2326,20 @@
               }
               showCounter(information.length, Date.now() - startTs)
             }
-            if (query.hasOwnProperty('params')) {
-              caller[query.api].call(caller, query.params, tableHandler)
-            } else {
-              try {
-                caller[query.api].call(caller, tableHandler)
-              } catch (e) {
-                console.error(`Error calling ${query.service}.${query.api}: ${e.message}`)
+            setTimeout(() => {
+              console.debug('delay', delay)
+              if (query.hasOwnProperty('params')) {
+                caller[query.api].call(caller, query.params, tableHandler)
+              } else {
+                try {
+                  caller[query.api].call(caller, tableHandler)
+                } catch (e) {
+                  console.error(`Error calling ${query.service}.${query.api}: ${e.message}`)
+                }
               }
-            }
+            }, delay)
+            delay += 200 // 5 req per seconds
           }
-        }
       }
 
       function contentRegionsCreate() {
@@ -2345,12 +2355,12 @@
           regions = ["global"].concat(regions);
           window.AWS_REGIONS = regions;
           for (var i=0; i<regions.length; i++) {
-            tabs.push( $(`<li class="nav-item"><a href="#region-${regions[i]}" id="tab-region-${regions[i]}" class="nav-link" data-toggle="pill" role="tab">${regions[i]}</a></li>`) );
+            tabs.push( $(`<li class="nav-item"><a onclick="inventoryServices('${regions[i]}')" href="#region-${regions[i]}" id="tab-region-${regions[i]}" class="nav-link" data-toggle="pill" role="tab">${regions[i]}</a></li>`) );
             tabPanes.push( $(`<div class="tab-pane show" id="region-${regions[i]}" role="tabpanel" aria-labelledby="tab-region-${regions[i]}"></div>`) )
           }
           $('#aws-region-tabs').append(tabs);
           $('#aws-inventory').append(tabPanes);
-          inventoryServices()
+          // inventoryServices()
           $('#tab-region-'+regions[0]).tab('show');
         })
       }
